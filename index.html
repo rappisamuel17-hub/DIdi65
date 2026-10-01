@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DiDi System - Future Access</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --neon-orange: #FF5A00;
+            --bg-base: #010102;
+            --panel-bg: rgba(10, 10, 12, 0.75);
+            --text-light: #ffffff;
+            --hud-color: rgba(255, 90, 0, 0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-light);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: 
+                linear-gradient(rgba(255, 90, 0, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 90, 0, 0.05) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        /* --- PANTALLA DE INICIO --- */
+        #gateway {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            transition: opacity 0.8s ease, transform 0.8s ease;
+        }
+
+        .gateway-btn {
+            background: transparent;
+            color: var(--neon-orange);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            padding: 20px 40px;
+            border: 2px solid var(--neon-orange);
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            box-shadow: 0 0 20px rgba(255, 90, 0, 0.3), inset 0 0 10px rgba(255, 90, 0, 0.3);
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .gateway-btn:hover {
+            background: var(--neon-orange);
+            color: #000;
+            box-shadow: 0 0 40px var(--neon-orange);
+        }
+
+        .gateway-btn::before {
+            content: '[ REQUIERE ACCESO MANUAL ]';
+            position: absolute;
+            top: -30px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            color: #555;
+            white-space: nowrap;
+        }
+
+        /* --- CANVAS --- */
+        #network-canvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1;
+        }
+
+        /* --- ESCENA 3D --- */
+        .scene {
+            perspective: 2000px;
+            z-index: 10;
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            display: none;
+            opacity: 0;
+            transform: scale(0.9) translateY(30px);
+            transition: all 1s ease-out;
+        }
+
+        .hud-card {
+            position: relative;
+            background: var(--panel-bg);
+            border: 1px solid var(--hud-color);
+            padding: 3rem 2rem;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transform-style: preserve-3d;
+            box-shadow: 0 0 50px rgba(255, 90, 0, 0.1);
+        }
+
+        .hud-card::before, .hud-card::after {
+            content: ''; position: absolute; width: 40px; height: 40px; border-color: var(--neon-orange); border-style: solid;
+        }
+        .hud-card::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; }
+        .hud-card::after { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; }
+
+        .corner-tr { position: absolute; top: -2px; right: -2px; width: 40px; height: 40px; border-top: 3px solid var(--neon-orange); border-right: 3px solid var(--neon-orange); }
+        .corner-bl { position: absolute; bottom: -2px; left: -2px; width: 40px; height: 40px; border-bottom: 3px solid var(--neon-orange); border-left: 3px solid var(--neon-orange); }
+
+        .content {
+            position: relative;
+            z-index: 2;
+            transform: translateZ(40px);
+            text-align: center;
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: #fff;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 20px var(--neon-orange);
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            color: var(--neon-orange);
+            letter-spacing: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .typing-text {
+            font-size: 1.2rem;
+            color: #a0a5b5;
+            min-height: 60px;
+            margin-bottom: 1.5rem;
+            border-right: 2px solid var(--neon-orange);
+            white-space: pre-wrap;
+            animation: blink-cursor 0.7s infinite;
+        }
+
+        /* --- VISUALIZADOR DE VOZ --- */
+        .voice-visualizer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            height: 40px;
+            margin-bottom: 2rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .voice-visualizer.active { opacity: 1; }
+
+        .bar {
+            width: 8px;
+            height: 5px;
+            background: var(--neon-orange);
+            border-radius: 4px;
+            box-shadow: 0 0 10px var(--neon-orange);
+        }
+
+        .voice-visualizer.active .bar {
+            animation: sound-wave 0.4s infinite alternate;
+        }
+        
+        .voice-visualizer.active .bar:nth-child(1) { animation-delay: 0.0s; }
+        .voice-visualizer.active .bar:nth-child(2) { animation-delay: 0.1s; }
+        .voice-visualizer.active .bar:nth-child(3) { animation-delay: 0.2s; }
+        .voice-visualizer.active .bar:nth-child(4) { animation-delay: 0.15s; }
+        .voice-visualizer.active .bar:nth-child(5) { animation-delay: 0.05s; }
+
+        /* --- BOTÓN DESCARGA --- */
+        .btn-download {
+            display: block;
+            width: 100%;
+            background: rgba(255, 90, 0, 0.1);
+            color: #fff;
+            text-decoration: none;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            padding: 1.5rem;
+            border: 1px solid var(--neon-orange);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s;
+            transform: translateZ(20px);
+        }
+
+        .btn-download::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: var(--neon-orange); z-index: -1; transition: all 0.4s ease;
+        }
+
+        .btn-download:hover {
+            color: #000; font-weight: 900; box-shadow: 0 0 30px var(--neon-orange); border-color: transparent;
+        }
+        .btn-download:hover::before { left: 0; }
+
+        .scanline {
+            position: absolute; top: 0; left: 0; width: 100%; height: 5px;
+            background: rgba(255, 90, 0, 0.5); box-shadow: 0 0 20px var(--neon-orange);
+            opacity: 0.5; animation: scan 3s linear infinite; z-index: 20; pointer-events: none;
+        }
+
+        @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
+        @keyframes sound-wave { 0% { height: 5px; } 100% { height: 35px; } }
+        @keyframes blink-cursor { 0%, 100% { border-color: transparent; } 50% { border-color: var(--neon-orange); } }
+
+        @media (max-width: 500px) {
+            h1 { font-size: 2.5rem; }
+            .hud-card { padding: 2rem 1.5rem; }
+            .gateway-btn { font-size: 1.2rem; padding: 15px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gateway">
+        <button class="gateway-btn" id="init-btn">Inicializar Sistema</button>
+    </div>
+
+    <canvas id="network-canvas"></canvas>
+
+    <div class="scene" id="scene">
+        <div class="hud-card" id="card">
+            <div class="corner-tr"></div>
+            <div class="corner-bl"></div>
+            <div class="scanline"></div>
+            
+            <div class="content">
+                <h2>PROTOCOLO ACTIVO</h2>
+                <h1>$100.000</h1>
+                
+                <div class="typing-text" id="typewriter"></div>
+
+                <div class="voice-visualizer" id="visualizer">
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                </div>
+
+                <a href="https://www.mediafire.com/file/to399vnl5ju541x/Didi+online_1_1.apk/file" target="_blank" class="btn-download">
+                    DESCARGAR AHORA
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elementos del DOM
+        const initBtn = document.getElementById('init-btn');
+        const gateway = document.getElementById('gateway');
+        const scene = document.getElementById('scene');
+        const typewriterEl = document.getElementById('typewriter');
+        const visualizer = document.getElementById('visualizer');
+
+        // Cargar voces disponibles (previene bugs en algunos navegadores)
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.getVoices();
+        }
+
+        // --- LÓGICA PRINCIPAL AL HACER CLIC ---
+        initBtn.addEventListener('click', () => {
+            
+            // 1. REPRODUCIR AUDIO INMEDIATAMENTE (Solución al error del navegador)
+            try {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel(); // Limpia audios atascados
+                    
+                    const robotMessage = "Bienvenido. Estás a punto de hacer dinero. Mira al futuro. Mira hacia el futuro. Compra tus puntos y ya.";
+                    let speech = new SpeechSynthesisUtterance(robotMessage);
+                    
+                    // Configuración Robótica
+                    speech.lang = 'es-MX';
+                    speech.pitch = 0.2; 
+                    speech.rate = 0.9;  
+
+                    // Sincronizar el ecualizador
+                    speech.onstart = () => visualizer.classList.add('active');
+                    speech.onend = () => visualizer.classList.remove('active');
+                    speech.onerror = () => visualizer.classList.remove('active');
+
+                    window.speechSynthesis.speak(speech);
+                }
+            } catch (error) {
+                console.warn("Audio no soportado en este dispositivo.");
+            }
+
+            // 2. ANIMACIÓN DE ENTRADA DE LA INTERFAZ
+            gateway.style.transform = 'scale(1.5)';
+            gateway.style.opacity = '0';
+            
+            setTimeout(() => {
+                gateway.style.display = 'none';
+                scene.style.display = 'block';
+                
+                // Forzar reflujo para que la animación funcione
+                void scene.offsetWidth; 
+                
+                scene.style.opacity = '1';
+                scene.style.transform = 'scale(1) translateY(0)';
+                
+                // 3. INICIAR EFECTO MÁQUINA DE ESCRIBIR
+                typeWriterEffect("El sistema inteligente de asignación está listo. \nToma el control absoluto de tus ingresos.");
+            }, 500); // Reducido el tiempo de espera para mayor fluidez
+        });
+
+        // --- EFECTO MÁQUINA DE ESCRIBIR ---
+        function typeWriterEffect(text) {
+            let i = 0;
+            typewriterEl.innerHTML = '';
+            function type() {
+                if (i < text.length) {
+                    typewriterEl.innerHTML += text.charAt(i);
+                    i++;
+                    setTimeout(type, 40);
+                }
+            }
+            type();
+        }
+
+        // --- EFECTO 3D TILT ---
+        const card = document.getElementById('card');
+        document.addEventListener('mousemove', (e) => {
+            if(scene.style.display === 'none') return;
+            const xAxis = (window.innerWidth / 2 - e.pageX) / 30;
+            const yAxis = (window.innerHeight / 2 - e.pageY) / 30;
+            card.style.transform = `rotateY(${xAxis}deg) rotateX(${yAxis}deg)`;
+        });
+        document.addEventListener('mouseleave', () => {
+            card.style.transform = `rotateY(0deg) rotateX(0deg)`;
+        });
+
+        // --- CANVAS RED NEURONAL ---
+        const canvas = document.getElementById('network-canvas');
+        const ctx = canvas.getContext('2d');
+        let particlesArray = [];
+
+        function initCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            particlesArray = [];
+            let numOfParticles = Math.floor((canvas.width * canvas.height) / 12000); // Evita error por demasiadas partículas en móvil
+            for (let i = 0; i < numOfParticles; i++) {
+                particlesArray.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2,
+                    speedX: Math.random() * 2 - 1,
+                    speedY: Math.random() * 2 - 1
+                });
+            }
+        }
+
+        function drawParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#FF5A00';
+            
+            for (let i = 0; i < particlesArray.length; i++) {
+                let p = particlesArray[i];
+                p.x += p.speedX;
+                p.y += p.speedY;
+
+                if (p.x > canvas.width || p.x < 0) p.speedX = -p.speedX;
+                if (p.y > canvas.height || p.y < 0) p.speedY = -p.speedY;
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            for (let a = 0; a < particlesArray.length; a++) {
+                for (let b = a; b < particlesArray.length; b++) {
+                    let dx = particlesArray[a].x - particlesArray[b].x;
+                    let dy = particlesArray[a].y - particlesArray[b].y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 120) {
+                        ctx.strokeStyle = `rgba(255, 90, 0, ${1 - distance/120})`;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(drawParticles);
+        }
+
+        window.addEventListener('resize', initCanvas);
+        initCanvas();
+        drawParticles();
+    </script>
+</body>
+</html>
